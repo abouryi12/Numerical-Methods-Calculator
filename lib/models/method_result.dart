@@ -19,6 +19,10 @@ class MethodResult {
   /// For linear system solvers — returns a vector of solutions.
   final List<double>? solutionVector;
 
+  /// Intermediate named vectors (e.g. y[], z[] from Thomas).
+  /// Keys are labels like 'y', 'z'.
+  final Map<String, List<double>>? intermediateVectors;
+
   /// Total iterations performed.
   final int iterations;
 
@@ -37,6 +41,7 @@ class MethodResult {
   const MethodResult({
     this.answer,
     this.solutionVector,
+    this.intermediateVectors,
     required this.iterations,
     this.approximateError,
     this.steps = const [],

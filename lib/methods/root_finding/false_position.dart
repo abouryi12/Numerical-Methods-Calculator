@@ -27,6 +27,11 @@ MethodResult falsePosition({
     final fA = applyPrecision(parser.evaluate(expression, aVal), precision);
     final fB = applyPrecision(parser.evaluate(expression, bVal), precision);
 
+    // Avoid division by zero.
+    if ((fB - fA).abs() < 1e-15) {
+      return MethodResult.error('f(a) ≈ f(b) — cannot compute false position');
+    }
+
     // Regula Falsi formula: xR = b - f(b) * (b - a) / (f(b) - f(a))
     xR = applyPrecision(
       bVal - fB * (bVal - aVal) / (fB - fA),
@@ -42,13 +47,13 @@ MethodResult falsePosition({
     steps.add(IterationStep(
       iteration: i,
       values: {
+        'Iteration': i.toDouble(),
         'a': aVal,
         'b': bVal,
         'x_r': xR,
         'f(a)': fA,
         'f(b)': fB,
         'f(x_r)': fR,
-        'error': error,
       },
     ));
 

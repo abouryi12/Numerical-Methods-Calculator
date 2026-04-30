@@ -30,9 +30,9 @@ class RootFindingValidator {
       );
     }
 
-    if (fa * fb >= 0) {
-      return const ValidationResult.invalid(
-        'Root is not bracketed in [a, b] — f(a) and f(b) must have opposite signs',
+    if (fa * fb > 0) {
+      return ValidationResult.invalid(
+        'Root is not bracketed — f($a) = ${fa.toStringAsFixed(4)}, f($b) = ${fb.toStringAsFixed(4)} (must have opposite signs)',
       );
     }
 

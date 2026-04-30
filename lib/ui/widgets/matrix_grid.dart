@@ -52,20 +52,22 @@ class _MatrixGridState extends State<MatrixGrid> {
       widget.size,
       (i) => List.generate(
         widget.size,
-        (j) => TextEditingController(
-          text: i < widget.matrix.length && j < widget.matrix[i].length
-              ? _formatValue(widget.matrix[i][j])
-              : '0',
-        ),
+        (j) {
+          final v = widget.matrix[i][j];
+          return TextEditingController(
+            text: v != 0.0 ? _formatValue(v) : '',
+          );
+        },
       ),
     );
     _vectorControllers = List.generate(
       widget.size,
-      (i) => TextEditingController(
-        text: i < widget.vectorB.length
-            ? _formatValue(widget.vectorB[i])
-            : '0',
-      ),
+      (i) {
+        final v = widget.vectorB[i];
+        return TextEditingController(
+          text: v != 0.0 ? _formatValue(v) : '',
+        );
+      },
     );
   }
 
@@ -147,7 +149,7 @@ class _MatrixGridState extends State<MatrixGrid> {
   ) {
     return Table(
       defaultColumnWidth: const FixedColumnWidth(56),
-      border: TableBorder.all(color: kBgBorder, width: 1),
+      border: TableBorder.all(color: const Color(0xFF2A61C2).withValues(alpha: 0.3), width: 0.4),
       children: List.generate(widget.size, (i) {
         return TableRow(
           children: List.generate(widget.size, (j) {
@@ -164,7 +166,7 @@ class _MatrixGridState extends State<MatrixGrid> {
   Widget _buildVectorColumn() {
     return Table(
       defaultColumnWidth: const FixedColumnWidth(56),
-      border: TableBorder.all(color: kBgBorder, width: 1),
+      border: TableBorder.all(color: const Color(0xFF2A61C2).withValues(alpha: 0.3), width: 0.4),
       children: List.generate(widget.size, (i) {
         return TableRow(
           children: [
@@ -203,11 +205,13 @@ class _MatrixCell extends StatelessWidget {
           decimal: true,
           signed: true,
         ),
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
+          hintText: '0',
+          hintStyle: monoStyle(fontSize: kTextBase, color: const Color(0xFF3A3A4A)),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           isDense: true,
           filled: false,
         ),

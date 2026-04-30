@@ -69,8 +69,69 @@ class ResultCard extends StatelessWidget {
               ),
             ),
 
+          // Intermediate vectors (e.g. y, z from Thomas).
+          if (result.intermediateVectors != null) ...[
+            for (final entry in result.intermediateVectors!.entries) ...[
+              Text(
+                'VECTOR ${entry.key.toUpperCase()}',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF6B6B80),
+                  letterSpacing: 0.88,
+                ),
+              ),
+              const SizedBox(height: 6),
+              for (int i = 0; i < entry.value.length; i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 3),
+                  child: RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '${entry.key}${_subscriptNum(i + 1)}',
+                          style: GoogleFonts.robotoMono(
+                            fontSize: 15,
+                            color: kTextSecondary,
+                          ),
+                        ),
+                        TextSpan(
+                          text: ' = ',
+                          style: GoogleFonts.robotoMono(
+                            fontSize: 15,
+                            color: kTextMuted,
+                          ),
+                        ),
+                        TextSpan(
+                          text: _formatNum(entry.value[i]),
+                          style: GoogleFonts.robotoMono(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF6BA3E8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 12),
+            ],
+          ],
+
           // Solution vector.
           if (result.solutionVector != null) ...[
+            if (result.intermediateVectors != null) ...[
+              Text(
+                'SOLUTION',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF6B6B80),
+                  letterSpacing: 0.88,
+                ),
+              ),
+              const SizedBox(height: 6),
+            ],
             for (int i = 0; i < result.solutionVector!.length; i++)
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
@@ -78,7 +139,9 @@ class ResultCard extends StatelessWidget {
                   text: TextSpan(
                     children: [
                       TextSpan(
-                        text: 'x${_subscript(i)}',
+                        text: result.intermediateVectors != null
+                            ? 'x${_subscriptNum(i + 1)}'
+                            : _variableName(i),
                         style: GoogleFonts.robotoMono(
                           fontSize: 16,
                           color: kTextSecondary,
@@ -169,10 +232,15 @@ class ResultCard extends StatelessWidget {
     );
   }
 
-  String _subscript(int i) {
-    const subscripts = '₀₁₂₃₄₅₆₇₈₉';
-    if (i < 10) return subscripts[i];
-    return i.toString();
+  String _variableName(int i) {
+    const names = ['x', 'y', 'z', 'w', 'v', 'u'];
+    if (i < names.length) return names[i];
+    return 'x${i + 1}';
+  }
+
+  String _subscriptNum(int n) {
+    const subs = '₀₁₂₃₄₅₆₇₈₉';
+    return n.toString().split('').map((c) => subs[int.parse(c)]).join();
   }
 
   String _formatNum(double v) {

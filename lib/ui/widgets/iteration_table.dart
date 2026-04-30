@@ -19,8 +19,12 @@ class _IterationTableState extends State<IterationTable> {
   Widget build(BuildContext context) {
     if (widget.steps.isEmpty) return const SizedBox.shrink();
 
-    // Get all column names from the first step.
-    final columns = widget.steps.first.values.keys.toList();
+    // Get all unique column names across all steps (preserving order).
+    final columnSet = <String>{};
+    for (final step in widget.steps) {
+      columnSet.addAll(step.values.keys);
+    }
+    final columns = columnSet.toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -38,7 +42,7 @@ class _IterationTableState extends State<IterationTable> {
             decoration: BoxDecoration(
               color: kBgSurface,
               borderRadius: BorderRadius.circular(kRadiusSM),
-              border: Border.all(color: kBgBorder, width: 1),
+              border: Border.all(color: const Color(0xFF2A61C2).withValues(alpha: 0.3), width: 0.4),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -62,7 +66,7 @@ class _IterationTableState extends State<IterationTable> {
           const SizedBox(height: kSpace2),
           Container(
             decoration: BoxDecoration(
-              border: Border.all(color: kBgBorder, width: 1),
+              border: Border.all(color: const Color(0xFF2A61C2).withValues(alpha: 0.3), width: 0.4),
               borderRadius: BorderRadius.circular(kRadiusSM),
             ),
             child: SingleChildScrollView(
@@ -70,30 +74,25 @@ class _IterationTableState extends State<IterationTable> {
               child: DataTable(
                 headingRowColor: WidgetStateProperty.all(kBgSurface),
                 dataRowColor: WidgetStateProperty.all(kBgBase),
-                headingRowHeight: 36,
-                dataRowMinHeight: 32,
+                columnSpacing: 24,
+                horizontalMargin: 16,
+                headingRowHeight: 40,
+                dataRowMinHeight: 36,
                 dataRowMaxHeight: 36,
-                columnSpacing: kSpace4,
-                horizontalMargin: kSpace3,
+                dividerThickness: 0.4,
+                border: TableBorder(
+                  horizontalInside: BorderSide(color: const Color(0xFF2A61C2).withValues(alpha: 0.3), width: 0.4),
+                  bottom: BorderSide(color: const Color(0xFF2A61C2).withValues(alpha: 0.3), width: 0.4),
+                ),
                 columns: [
-                  DataColumn(
-                    label: Text(
-                      '#',
-                      style: monoStyle(
-                        fontSize: kTextXS,
-                        color: kTextSecondary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
                   ...columns.map(
                     (col) => DataColumn(
                       label: Text(
                         col,
                         style: monoStyle(
                           fontSize: kTextXS,
-                          color: kTextSecondary,
-                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF4A8FE8),
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -102,23 +101,25 @@ class _IterationTableState extends State<IterationTable> {
                 rows: widget.steps.map((step) {
                   return DataRow(
                     cells: [
-                      DataCell(
-                        Text(
-                          '${step.iteration}',
-                          style: monoStyle(
-                            fontSize: kTextXS,
-                            color: kTextMuted,
-                          ),
-                        ),
-                      ),
                       ...columns.map((col) {
                         final value = step.values[col];
+                        // Format 'Iteration' and 'Iter' as integers.
+                        final isIterCol = col == 'Iteration' || col == 'Iter';
                         return DataCell(
                           Text(
-                            value != null ? _formatValue(value) : '—',
+                            value != null
+                                ? (isIterCol
+                                    ? value.toInt().toString()
+                                    : _formatValue(value))
+                                : '—',
                             style: monoStyle(
                               fontSize: kTextXS,
-                              color: kTextPrimary,
+                              color: isIterCol
+                                  ? kTextSecondary
+                                  : kTextPrimary,
+                              fontWeight: isIterCol
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
                             ),
                           ),
                         );

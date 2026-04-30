@@ -171,7 +171,6 @@ MethodResult _runMethod(_SolverPayload payload) {
       return linear.thomas(
         matrix: input.matrix!,
         vectorB: input.vectorB!,
-        precision: p,
       );
 
     case NumericalMethod.jacobi:

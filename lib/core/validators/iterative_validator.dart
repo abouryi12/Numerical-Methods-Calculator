@@ -58,4 +58,52 @@ class IterativeValidator {
 
     return const ValidationResult.valid();
   }
+
+  /// Attempts to rearrange the rows of [matrix] and [vectorB] to make the
+  /// matrix diagonally dominant. Returns true if successful, false otherwise.
+  static bool makeDiagonallyDominant({
+    required List<List<double>> matrix,
+    required List<double> vectorB,
+  }) {
+    if (matrix.isEmpty) return false;
+    final n = matrix.length;
+    final newMatrix = List.generate(n, (_) => <double>[]);
+    final newVectorB = List.filled(n, 0.0);
+    final rowAssigned = List.filled(n, false);
+
+    for (int i = 0; i < n; i++) {
+      int foundRow = -1;
+      for (int r = 0; r < n; r++) {
+        if (rowAssigned[r]) continue;
+        
+        double diag = matrix[r][i].abs();
+        double sum = 0;
+        for (int c = 0; c < n; c++) {
+          if (c != i) sum += matrix[r][c].abs();
+        }
+        
+        if (diag >= sum && diag > 0) {
+          foundRow = r;
+          break;
+        }
+      }
+
+      if (foundRow == -1) {
+        // Could not find a dominant row for column i.
+        return false;
+      }
+
+      newMatrix[i] = List<double>.from(matrix[foundRow]);
+      newVectorB[i] = vectorB[foundRow];
+      rowAssigned[foundRow] = true;
+    }
+
+    // Apply the rearranged rows back to the original references.
+    for (int i = 0; i < n; i++) {
+      matrix[i] = newMatrix[i];
+      vectorB[i] = newVectorB[i];
+    }
+    
+    return true;
+  }
 }

@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../core/providers/precision_provider.dart';
 import '../../../core/providers/solver_provider.dart';
 import '../../../core/validators/root_finding_validator.dart';
 import '../../../core/validators/validation_result.dart';
 import '../../../models/method_input.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/math_input_field.dart';
-import '../../widgets/precision_panel.dart';
 
 class SolverBodyRootFinding extends ConsumerStatefulWidget {
   final NumericalMethod method;
@@ -80,13 +78,11 @@ class _SolverBodyRootFindingState extends ConsumerState<SolverBodyRootFinding> {
       return;
     }
 
-    final precision = ref.read(precisionProvider);
     final input = MethodInput(
       expression: _expression,
       initialValues: widget.method == NumericalMethod.newtonRaphson ? [a] : [a, b!],
       tolerance: tol,
       maxIterations: maxIter,
-      precision: precision,
     );
 
     ref.read(solverProvider.notifier).solve(widget.method, input);
@@ -125,7 +121,7 @@ class _SolverBodyRootFindingState extends ConsumerState<SolverBodyRootFinding> {
             Expanded(
               child: _buildInput(
                 controller: _aController,
-                hint: isNewton ? 'x₀' : (isSecant ? 'x₀' : 'a'),
+                hint: isNewton ? 'x₀' : (isSecant ? 'X0' : 'a'),
                 errorText: _aError,
                 onChanged: (_) {
                   if (_aError != null) setState(() => _aError = null);
@@ -137,7 +133,7 @@ class _SolverBodyRootFindingState extends ConsumerState<SolverBodyRootFinding> {
               Expanded(
                 child: _buildInput(
                   controller: _bController,
-                  hint: isSecant ? 'x₁' : 'b',
+                  hint: isSecant ? 'X1' : 'b',
                   errorText: _bError,
                   onChanged: (_) {
                     if (_bError != null) setState(() => _bError = null);
@@ -147,34 +143,26 @@ class _SolverBodyRootFindingState extends ConsumerState<SolverBodyRootFinding> {
             ]
           ],
         ),
-        const SizedBox(height: 12),
-
-        Row(
-          children: [
-            Expanded(
-              child: _buildInput(
-                controller: _tolController,
-                hint: 'Tolerance',
+        if (widget.method != NumericalMethod.bisection) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildInput(
+                  controller: _tolController,
+                  hint: 'Tolerance',
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildInput(
-                controller: _iterController,
-                hint: 'Max Iterations',
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildInput(
+                  controller: _iterController,
+                  hint: 'Max Iterations',
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // Divider
-        Container(height: 1, color: const Color(0xFF232329)),
-        const SizedBox(height: 16),
-
-        // Precision
-        const PrecisionPanel(),
-        
+            ],
+          ),
+        ],
         const SizedBox(height: 20),
 
         // Solve button
@@ -196,38 +184,58 @@ class _SolverBodyRootFindingState extends ConsumerState<SolverBodyRootFinding> {
   }
 
   Widget _solveButton(bool isLoading) {
-    return SizedBox(
-      width: double.infinity,
-      height: 48,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : _solve,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF4A8FE8),
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: const Color(0xFF1A1B24),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          elevation: 0,
-        ),
-        child: isLoading
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : Text(
-                'SOLVE',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Center(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOutCubic,
+            width: isLoading ? 48 : constraints.maxWidth,
+            height: 48,
+            decoration: BoxDecoration(
+              color: isLoading ? Colors.transparent : const Color(0xFF2A61C2),
+              borderRadius: BorderRadius.circular(isLoading ? 24 : 10),
+              border: isLoading ? Border.all(color: const Color(0xFF2A61C2), width: 2) : null,
+              boxShadow: isLoading
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFF2A61C2).withValues(alpha: 0.3),
+                        blurRadius: 12,
+                        spreadRadius: 1,
+                      )
+                    ]
+                  : [],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: isLoading ? null : _solve,
+                borderRadius: BorderRadius.circular(isLoading ? 24 : 10),
+                child: Center(
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2A61C2)),
+                          ),
+                        )
+                      : Text(
+                          'SOLVE',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                            letterSpacing: 1,
+                          ),
+                        ),
                 ),
               ),
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -250,11 +258,11 @@ class _SolverBodyRootFindingState extends ConsumerState<SolverBodyRootFinding> {
         fillColor: kBgBase,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFF232329)),
+          borderSide: BorderSide(color: const Color(0xFF2A61C2).withValues(alpha: 0.3), width: 0.4),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFF232329)),
+          borderSide: BorderSide(color: const Color(0xFF2A61C2).withValues(alpha: 0.3), width: 0.4),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),

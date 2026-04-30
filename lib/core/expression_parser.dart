@@ -64,17 +64,47 @@ class ExpressionParser {
 
   String _normalize(String expr) {
     var normalized = expr.trim().toLowerCase();
+    
+    // Replace mathematical italic characters often copied from PDFs
+    normalized = normalized.replaceAll('𝑥', 'x');
+    normalized = normalized.replaceAll('𝑒', 'e');
+    
+    // Replace smart dashes/typographical minus signs with standard hyphen-minus
+    normalized = normalized.replaceAll('–', '-'); // en-dash
+    normalized = normalized.replaceAll('—', '-'); // em-dash
+    normalized = normalized.replaceAll('−', '-'); // mathematical minus
+    
     // Ensure all x are bound correctly
     normalized = normalized.replaceAll('ln', 'log');
     
-    // Add implicit multiplication: 2x -> 2*x
+    // Convert e^... to (e^(...)) to prevent precedence issues and avoid unsupported 'exp' function
+    // Matches e^(...)
+    normalized = normalized.replaceAllMapped(RegExp(r'e\^\(([^)]+)\)'), (m) => '(e^(${m.group(1)}))');
+    // Matches e^-x, e^-2x, etc.
+    normalized = normalized.replaceAllMapped(RegExp(r'e\^-([a-zA-Z0-9.]+)'), (m) => '(e^(-${m.group(1)}))');
+    // Matches e^x, e^2x, etc.
+    normalized = normalized.replaceAllMapped(RegExp(r'e\^([a-zA-Z0-9.]+)'), (m) => '(e^(${m.group(1)}))');
+    
+    // Also convert any explicit exp(...) to (e^(...)) just in case
+    normalized = normalized.replaceAllMapped(RegExp(r'exp\(([^)]+)\)'), (m) => '(e^(${m.group(1)}))');
+    
+    // Add implicit multiplication: 2x -> 2*x, 3.5x -> 3.5*x
     normalized = normalized.replaceAllMapped(RegExp(r'(\d)(x)'), (match) {
       return '${match.group(1)}*${match.group(2)}';
     });
-    // Add implicit multiplication: x( -> x*(
-    normalized = normalized.replaceAllMapped(RegExp(r'(x|\d)\('), (match) {
+    // Add implicit multiplication: x( -> x*(, )( -> )*(, digit( -> digit*(
+    normalized = normalized.replaceAllMapped(RegExp(r'(x|\d|\))(\()'), (match) {
       return '${match.group(1)}*(';
     });
+    // Add implicit multiplication: )x -> )*x
+    normalized = normalized.replaceAllMapped(RegExp(r'(\))(x)'), (match) {
+      return '${match.group(1)}*${match.group(2)}';
+    });
+    // Add implicit multiplication before functions: 2sin -> 2*sin, xsin -> x*sin
+    normalized = normalized.replaceAllMapped(
+      RegExp(r'(\d|x)(sin|cos|tan|log|sqrt|exp|abs)'),
+      (match) => '${match.group(1)}*${match.group(2)}',
+    );
 
     return normalized;
   }

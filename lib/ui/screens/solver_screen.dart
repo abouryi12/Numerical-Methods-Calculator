@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/providers/solver_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/responsive_container.dart';
 import '../widgets/result_card.dart';
 import '../widgets/iteration_table.dart';
 import 'solver_bodies/solver_body_root_finding.dart';
@@ -60,6 +61,8 @@ class _SolverScreenState extends ConsumerState<SolverScreen>
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(solverProvider);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWide = screenWidth >= 900;
 
     return Scaffold(
       backgroundColor: kBgBase,
@@ -68,40 +71,192 @@ class _SolverScreenState extends ConsumerState<SolverScreen>
         slivers: [
           // ── Header ──
           SliverToBoxAdapter(
-            child: _buildHeader(context),
-          ),
-
-          // ── Input Section ──
-          SliverToBoxAdapter(
-            child: FadeTransition(
-              opacity: _fadeAnim,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF111116),
-                    border: Border.all(color: const Color(0xFF232329)),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: _buildInputs(),
-                ),
-              ),
+            child: ResponsiveContainer(
+              maxWidth: isWide ? 1200 : 720,
+              child: _buildHeader(context),
             ),
           ),
 
-          // ── Results Section ──
-          if (state.result != null)
+          // ── Content: side-by-side on wide, stacked on mobile ──
+          if (isWide)
             SliverToBoxAdapter(
-              child: AnimatedOpacity(
-                opacity: state.result != null ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 300),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
-                  child: _buildResults(state),
+              child: ResponsiveContainer(
+                maxWidth: 1200,
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Input panel
+                    Expanded(
+                      flex: 5,
+                      child: FadeTransition(
+                        opacity: _fadeAnim,
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF111116),
+                            border: Border.all(
+                                color: const Color(0xFF2A61C2)
+                                    .withValues(alpha: 0.3),
+                                width: 0.4),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: _buildInputs(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    // Results panel
+                    Expanded(
+                      flex: 5,
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 500),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeIn,
+                        transitionBuilder: (child, animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0, 0.1),
+                                end: Offset.zero,
+                              ).animate(CurvedAnimation(
+                                parent: animation,
+                                curve: Curves.easeOutCubic,
+                              )),
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: state.result != null
+                            ? Container(
+                                key: ValueKey(state.result.hashCode),
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF111116),
+                                  border: Border.all(
+                                      color: const Color(0xFF2A61C2)
+                                          .withValues(alpha: 0.3),
+                                      width: 0.4),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    ResultCard(result: state.result!),
+                                    IterationTable(
+                                        steps: state.result!.steps),
+                                  ],
+                                ),
+                              )
+                            : Container(
+                                key: const ValueKey('empty_results'),
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 80, horizontal: 20),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF111116),
+                                  border: Border.all(
+                                      color: const Color(0xFF2A61C2)
+                                          .withValues(alpha: 0.15),
+                                      width: 0.4),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.calculate_outlined,
+                                        size: 48,
+                                        color: kTextMuted.withValues(alpha: 0.5)),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'Results will appear here',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 14,
+                                        color: kTextMuted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else ...[
+            // ── Mobile: stacked layout ──
+            // Input Section
+            SliverToBoxAdapter(
+              child: ResponsiveContainer(
+                maxWidth: 720,
+                child: FadeTransition(
+                  opacity: _fadeAnim,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF111116),
+                        border: Border.all(
+                            color: const Color(0xFF2A61C2)
+                                .withValues(alpha: 0.3),
+                            width: 0.4),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: _buildInputs(),
+                    ),
+                  ),
                 ),
               ),
             ),
+
+            // Results Section
+            SliverToBoxAdapter(
+              child: ResponsiveContainer(
+                maxWidth: 720,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 500),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeIn,
+                  transitionBuilder: (child, animation) {
+                    final slideAnim = Tween<Offset>(
+                      begin: const Offset(0, 0.15),
+                      end: Offset.zero,
+                    ).animate(CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ));
+                    final scaleAnim = Tween<double>(
+                      begin: 0.95,
+                      end: 1.0,
+                    ).animate(CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ));
+                    return SlideTransition(
+                      position: slideAnim,
+                      child: ScaleTransition(
+                        scale: scaleAnim,
+                        child: FadeTransition(
+                          opacity: animation,
+                          child: child,
+                        ),
+                      ),
+                    );
+                  },
+                  child: state.result != null
+                      ? Padding(
+                          key: ValueKey(state.result.hashCode),
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+                          child: _buildResults(state),
+                        )
+                      : const SizedBox.shrink(key: ValueKey('empty')),
+                ),
+              ),
+            ),
+          ],
 
           // Bottom spacing
           const SliverToBoxAdapter(
@@ -154,26 +309,6 @@ class _SolverScreenState extends ConsumerState<SolverScreen>
                   ),
                 ),
               ),
-              // Category pill
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4A8FE8).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: const Color(0xFF4A8FE8).withValues(alpha: 0.2),
-                  ),
-                ),
-                child: Text(
-                  widget.category.toUpperCase(),
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF4A8FE8),
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ),
             ],
           ),
         ],
@@ -202,7 +337,7 @@ class _SolverScreenState extends ConsumerState<SolverScreen>
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: const Color(0xFF111116),
-        border: Border.all(color: const Color(0xFF232329)),
+        border: Border.all(color: const Color(0xFF2A61C2).withValues(alpha: 0.3), width: 0.4),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(

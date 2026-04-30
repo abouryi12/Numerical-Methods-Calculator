@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../core/providers/precision_provider.dart';
 import '../../../core/providers/solver_provider.dart';
 import '../../../core/validators/linear_system_validator.dart';
 import '../../../core/validators/iterative_validator.dart';
@@ -9,7 +8,6 @@ import '../../../core/validators/validation_result.dart';
 import '../../../models/method_input.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/matrix_grid.dart';
-import '../../widgets/precision_panel.dart';
 
 class SolverBodyMatrix extends ConsumerStatefulWidget {
   final NumericalMethod method;
@@ -26,18 +24,22 @@ class SolverBodyMatrix extends ConsumerStatefulWidget {
 }
 
 class _SolverBodyMatrixState extends ConsumerState<SolverBodyMatrix> {
-  int _size = 3;
+  late int _size;
   late List<List<double>> _matrix;
   late List<double> _vectorB;
   late List<double> _initialVector;
   final _tolController = TextEditingController(text: '0.0001');
   final _iterController = TextEditingController(text: '50');
+  final _initialVectorController = TextEditingController();
 
   String? _validationError;
+  int _gridKey = 0;
+  bool _wasRearranged = false;
 
   @override
   void initState() {
     super.initState();
+    _size = widget.method == NumericalMethod.thomasAlgorithm ? 4 : 3;
     _initMatrixAndVector();
   }
 
@@ -45,13 +47,22 @@ class _SolverBodyMatrixState extends ConsumerState<SolverBodyMatrix> {
     _matrix = List.generate(_size, (_) => List.filled(_size, 0.0));
     _vectorB = List.filled(_size, 0.0);
     _initialVector = List.filled(_size, 0.0);
+    _initialVectorController.text = List.filled(_size, '0').join(', ');
   }
 
   @override
   void dispose() {
     _tolController.dispose();
     _iterController.dispose();
+    _initialVectorController.dispose();
     super.dispose();
+  }
+
+  List<int> get _availableSizes {
+    if (widget.method == NumericalMethod.thomasAlgorithm) {
+      return [4, 5, 6];
+    }
+    return [2, 3, 4, 5, 6];
   }
 
   void _setSize(int size) {
@@ -63,7 +74,10 @@ class _SolverBodyMatrixState extends ConsumerState<SolverBodyMatrix> {
   }
 
   void _solve() {
-    setState(() => _validationError = null);
+    setState(() {
+      _validationError = null;
+      _wasRearranged = false;
+    });
 
     var validation = const ValidationResult.valid();
     if (widget.method == NumericalMethod.doolittleLU) {
@@ -76,6 +90,26 @@ class _SolverBodyMatrixState extends ConsumerState<SolverBodyMatrix> {
         vectorB: _vectorB,
         initialVector: _initialVector,
       );
+
+      // If not diagonally dominant, try auto-rearranging rows
+      if (!validation.isValid &&
+          validation.errorMessage != null &&
+          validation.errorMessage!.contains('diagonally dominant')) {
+        final success = IterativeValidator.makeDiagonallyDominant(
+          matrix: _matrix,
+          vectorB: _vectorB,
+        );
+        if (success) {
+          _wasRearranged = true;
+          _gridKey++;
+          // Re-validate with rearranged matrix
+          validation = IterativeValidator.validate(
+            matrix: _matrix,
+            vectorB: _vectorB,
+            initialVector: _initialVector,
+          );
+        }
+      }
     }
 
     if (!validation.isValid) {
@@ -83,7 +117,6 @@ class _SolverBodyMatrixState extends ConsumerState<SolverBodyMatrix> {
       return;
     }
 
-    final precision = ref.read(precisionProvider);
     final tol = double.tryParse(_tolController.text) ?? 0.0001;
     final maxIter = int.tryParse(_iterController.text) ?? 50;
 
@@ -93,8 +126,12 @@ class _SolverBodyMatrixState extends ConsumerState<SolverBodyMatrix> {
       initialVector: widget.category == 'Iterative' ? _initialVector : null,
       tolerance: tol,
       maxIterations: maxIter,
-      precision: precision,
     );
+
+    // Trigger UI update if matrix was rearranged
+    if (_wasRearranged) {
+      setState(() {});
+    }
 
     ref.read(solverProvider.notifier).solve(widget.method, input);
   }
@@ -121,6 +158,7 @@ class _SolverBodyMatrixState extends ConsumerState<SolverBodyMatrix> {
         _sectionLabel('COEFFICIENT MATRIX  [A | b]'),
         const SizedBox(height: 10),
         MatrixGrid(
+          key: ValueKey(_gridKey),
           size: _size,
           matrix: _matrix,
           vectorB: _vectorB,
@@ -134,6 +172,29 @@ class _SolverBodyMatrixState extends ConsumerState<SolverBodyMatrix> {
           },
         ),
         
+        if (_wasRearranged) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1B5E20).withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF4CAF50).withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.auto_fix_high, color: Color(0xFF4CAF50), size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Rows rearranged automatically for diagonal dominance',
+                    style: GoogleFonts.inter(color: const Color(0xFF81C784), fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         if (_validationError != null) ...[
           const SizedBox(height: 10),
           Text(_validationError!, style: const TextStyle(color: kErrorText, fontSize: kTextSM)),
@@ -147,7 +208,7 @@ class _SolverBodyMatrixState extends ConsumerState<SolverBodyMatrix> {
           _sectionLabel('INITIAL GUESS'),
           const SizedBox(height: 10),
           _buildInput(
-            controller: TextEditingController(text: _initialVector.join(', ')),
+            controller: _initialVectorController,
             hint: 'Comma separated (e.g. 0, 0, 0)',
             onChanged: (val) {
               final parts = val.split(',').map((e) => double.tryParse(e.trim()) ?? 0.0).toList();
@@ -170,12 +231,6 @@ class _SolverBodyMatrixState extends ConsumerState<SolverBodyMatrix> {
           ),
         ],
 
-        const SizedBox(height: 16),
-        Container(height: 1, color: const Color(0xFF232329)),
-        const SizedBox(height: 16),
-
-        const PrecisionPanel(),
-        
         const SizedBox(height: 20),
         _solveButton(isLoading),
       ],
@@ -191,7 +246,7 @@ class _SolverBodyMatrixState extends ConsumerState<SolverBodyMatrix> {
         border: Border.all(color: const Color(0xFF232329), width: 1),
       ),
       child: Row(
-        children: [2, 3, 4, 5, 6].map((size) {
+        children: _availableSizes.map((size) {
           final isSelected = size == _size;
           return Expanded(
             child: GestureDetector(
@@ -241,38 +296,58 @@ class _SolverBodyMatrixState extends ConsumerState<SolverBodyMatrix> {
   }
 
   Widget _solveButton(bool isLoading) {
-    return SizedBox(
-      width: double.infinity,
-      height: 48,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : _solve,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF4A8FE8),
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: const Color(0xFF1A1B24),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          elevation: 0,
-        ),
-        child: isLoading
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : Text(
-                'SOLVE',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Center(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOutCubic,
+            width: isLoading ? 48 : constraints.maxWidth,
+            height: 48,
+            decoration: BoxDecoration(
+              color: isLoading ? Colors.transparent : const Color(0xFF2A61C2),
+              borderRadius: BorderRadius.circular(isLoading ? 24 : 10),
+              border: isLoading ? Border.all(color: const Color(0xFF2A61C2), width: 2) : null,
+              boxShadow: isLoading
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFF2A61C2).withValues(alpha: 0.3),
+                        blurRadius: 12,
+                        spreadRadius: 1,
+                      )
+                    ]
+                  : [],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: isLoading ? null : _solve,
+                borderRadius: BorderRadius.circular(isLoading ? 24 : 10),
+                child: Center(
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2A61C2)),
+                          ),
+                        )
+                      : Text(
+                          'SOLVE',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                            letterSpacing: 1,
+                          ),
+                        ),
                 ),
               ),
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -293,11 +368,11 @@ class _SolverBodyMatrixState extends ConsumerState<SolverBodyMatrix> {
         fillColor: kBgBase,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFF232329)),
+          borderSide: BorderSide(color: const Color(0xFF2A61C2).withValues(alpha: 0.3), width: 0.4),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFF232329)),
+          borderSide: BorderSide(color: const Color(0xFF2A61C2).withValues(alpha: 0.3), width: 0.4),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),

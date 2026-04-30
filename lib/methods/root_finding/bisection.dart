@@ -39,13 +39,13 @@ MethodResult bisection({
     steps.add(IterationStep(
       iteration: i,
       values: {
+        'Iteration': i.toDouble(),
         'a': aVal,
         'b': bVal,
         'x_mid': xMid,
         'f(a)': fA,
         'f(b)': fB,
         'f(x_mid)': fMid,
-        'error': error,
       },
     ));
 

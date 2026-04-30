@@ -1,9 +1,11 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/navigation/app_router.dart';
 import '../../core/providers/solver_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/responsive_container.dart';
 
 class MethodSelectionScreen extends StatefulWidget {
   final String category;
@@ -116,17 +118,20 @@ class _MethodSelectionScreenState extends State<MethodSelectionScreen>
         slivers: [
           // ── Custom Header ──
           SliverToBoxAdapter(
-            child: _buildHeader(context, accent),
+            child: ResponsiveContainer(
+              maxWidth: 720,
+              child: _buildHeader(context, accent),
+            ),
           ),
 
           // ── Methods List ──
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
+          SliverToBoxAdapter(
+            child: ResponsiveContainer(
+              maxWidth: 720,
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
+              child: Column(
+                children: List.generate(methods.length, (index) {
                   final method = methods[index];
-                  // Calculate stagger interval for each card.
                   final begin = (index / methods.length) * 0.5;
                   final end = begin + 0.5;
                   final curvedAnim = CurvedAnimation(
@@ -166,8 +171,7 @@ class _MethodSelectionScreenState extends State<MethodSelectionScreen>
                       ),
                     ),
                   );
-                },
-                childCount: methods.length,
+                }),
               ),
             ),
           ),
@@ -216,15 +220,64 @@ class _MethodSelectionScreenState extends State<MethodSelectionScreen>
           ),
           const SizedBox(height: 24),
 
-          // Centered animated icon
-          AnimatedBuilder(
-            animation: _headerController,
-            builder: (context, child) {
+          GestureDetector(
+            onTap: () {
+              // Replay the entrance animation on tap for a satisfying interactive effect!
+              _headerController.forward(from: 0.0);
+            },
+            child: AnimatedBuilder(
+              animation: _headerController,
+              builder: (context, child) {
+              final blurValue = (1.0 - _iconOpacity.value) * 10.0;
+              final t = _headerController.value;
+
+              Widget animatedIcon = child!;
+              
+              switch (widget.category) {
+                case 'Root Finding':
+                  // Spin + Scale
+                  animatedIcon = Transform.rotate(
+                    angle: (1.0 - _iconScale.value) * 3.14159,
+                    child: animatedIcon,
+                  );
+                  break;
+                case 'Linear Systems':
+                  // Flip 3D (Matrix-like)
+                  animatedIcon = Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.identity()
+                      ..setEntry(3, 2, 0.002)
+                      ..rotateX((1.0 - _iconScale.value) * 3.14159),
+                    child: animatedIcon,
+                  );
+                  break;
+                case 'Iterative':
+                  // 360 Rotation
+                  animatedIcon = Transform.rotate(
+                    angle: t * 2 * 3.14159,
+                    child: animatedIcon,
+                  );
+                  break;
+                case 'Interpolation':
+                  // Slide up-right (trending up)
+                  animatedIcon = Transform.translate(
+                    offset: Offset((1.0 - _iconScale.value) * -30, (1.0 - _iconScale.value) * 30),
+                    child: animatedIcon,
+                  );
+                  break;
+              }
+
               return Opacity(
                 opacity: _iconOpacity.value,
                 child: Transform.scale(
                   scale: _iconScale.value,
-                  child: child,
+                  child: ImageFiltered(
+                    imageFilter: ImageFilter.blur(
+                      sigmaX: blurValue,
+                      sigmaY: blurValue,
+                    ),
+                    child: animatedIcon,
+                  ),
                 ),
               );
             },
@@ -233,6 +286,7 @@ class _MethodSelectionScreenState extends State<MethodSelectionScreen>
               size: 48,
               color: accent,
             ),
+          ),
           ),
           const SizedBox(height: 16),
 
@@ -329,8 +383,8 @@ class _MethodCardState extends State<_MethodCard> {
           decoration: BoxDecoration(
             color: const Color(0xFF111116),
             border: Border.all(
-              color: const Color(0xFF232329),
-              width: 1,
+              color: const Color(0xFF2A61C2).withValues(alpha: 0.3),
+              width: 0.4,
             ),
             borderRadius: BorderRadius.circular(12),
           ),

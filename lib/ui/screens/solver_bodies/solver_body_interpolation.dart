@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../core/providers/precision_provider.dart';
 import '../../../core/providers/solver_provider.dart';
 import '../../../core/validators/interpolation_validator.dart';
 import '../../../core/validators/validation_result.dart';
 import '../../../models/method_input.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/precision_panel.dart';
 
 class SolverBodyInterpolation extends ConsumerStatefulWidget {
   final NumericalMethod method;
@@ -83,11 +81,9 @@ class _SolverBodyInterpolationState extends ConsumerState<SolverBodyInterpolatio
       return;
     }
 
-    final precision = ref.read(precisionProvider);
     final input = MethodInput(
       dataPoints: _dataPoints,
       targetX: targetX,
-      precision: precision,
     );
 
     ref.read(solverProvider.notifier).solve(widget.method, input);
@@ -106,7 +102,7 @@ class _SolverBodyInterpolationState extends ConsumerState<SolverBodyInterpolatio
         // Data points table
         Container(
           decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFF232329)),
+            border: Border.all(color: const Color(0xFF2A61C2).withValues(alpha: 0.3), width: 0.4),
             borderRadius: BorderRadius.circular(10),
             color: kBgBase,
           ),
@@ -115,9 +111,9 @@ class _SolverBodyInterpolationState extends ConsumerState<SolverBodyInterpolatio
               // Header row
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   border: Border(
-                    bottom: BorderSide(color: Color(0xFF232329)),
+                    bottom: BorderSide(color: const Color(0xFF2A61C2).withValues(alpha: 0.3), width: 0.4),
                   ),
                 ),
                 child: Row(
@@ -149,7 +145,7 @@ class _SolverBodyInterpolationState extends ConsumerState<SolverBodyInterpolatio
                 return Container(
                   decoration: BoxDecoration(
                     border: index < _dataPoints.length - 1
-                        ? const Border(bottom: BorderSide(color: Color(0xFF1A1B24)))
+                        ? Border(bottom: BorderSide(color: const Color(0xFF2A61C2).withValues(alpha: 0.3), width: 0.4))
                         : null,
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -234,12 +230,6 @@ class _SolverBodyInterpolationState extends ConsumerState<SolverBodyInterpolatio
           },
         ),
 
-        const SizedBox(height: 16),
-        Container(height: 1, color: const Color(0xFF232329)),
-        const SizedBox(height: 16),
-
-        const PrecisionPanel(),
-        
         const SizedBox(height: 20),
         _solveButton(isLoading),
       ],
@@ -259,38 +249,58 @@ class _SolverBodyInterpolationState extends ConsumerState<SolverBodyInterpolatio
   }
 
   Widget _solveButton(bool isLoading) {
-    return SizedBox(
-      width: double.infinity,
-      height: 48,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : _solve,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF4A8FE8),
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: const Color(0xFF1A1B24),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          elevation: 0,
-        ),
-        child: isLoading
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : Text(
-                'SOLVE',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Center(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOutCubic,
+            width: isLoading ? 48 : constraints.maxWidth,
+            height: 48,
+            decoration: BoxDecoration(
+              color: isLoading ? Colors.transparent : const Color(0xFF2A61C2),
+              borderRadius: BorderRadius.circular(isLoading ? 24 : 10),
+              border: isLoading ? Border.all(color: const Color(0xFF2A61C2), width: 2) : null,
+              boxShadow: isLoading
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFF2A61C2).withValues(alpha: 0.3),
+                        blurRadius: 12,
+                        spreadRadius: 1,
+                      )
+                    ]
+                  : [],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: isLoading ? null : _solve,
+                borderRadius: BorderRadius.circular(isLoading ? 24 : 10),
+                child: Center(
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2A61C2)),
+                          ),
+                        )
+                      : Text(
+                          'SOLVE',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                            letterSpacing: 1,
+                          ),
+                        ),
                 ),
               ),
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 
